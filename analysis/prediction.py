@@ -8,6 +8,7 @@ import dataset
 from models.ConResNet import ConResNet
 from models.ConResNet_mod import ConResNet_mod
 from models.Co_Con import Co_Con
+from models.Co_Con_Aspp import Co_Con_ASPP
 import utils.metrics
 from utils.metrics import ConfusionMatrix
 from utils.metrics import compute_channel_dice
@@ -27,11 +28,11 @@ from scipy.ndimage.morphology import binary_erosion
 
 
 
-def predictor(PATH, data_loader):
+def predictor(PATH, data_loader, model_name, csv_name, mode='test'):
 
     # 2 channel label, 2 classes
-    model_path = PATH + '/ConResNet_BEST.pth'
-    path_list = glob.glob('F:/LungCancerData/valid/*/')
+    model_path = PATH + model_name
+    path_list = glob.glob(f'D:/HSE/LungCancerData/{mode}/*/')
     input_size = (80, 128, 160)
     model = Co_Con(input_size, num_classes=2, weight_std=True)
     model.load_state_dict(torch.load(model_path))
@@ -230,7 +231,7 @@ def predictor(PATH, data_loader):
     eval_df.loc['Median'] = eval_df.median()
     eval_df.loc['Std'] = eval_df.std()
     print(eval_df)
-    eval_df.to_csv(PATH + '/prediction_valid_BEST.csv', mode='w')
+    eval_df.to_csv(PATH + csv_name, mode='w')
     print(f'Evaluation csv saved in {os.getcwd()}')
 
     print('End of validation')
@@ -241,6 +242,9 @@ def predictor(PATH, data_loader):
 
 
 _, _, pred_loader = dataset.lung_dataloader.generate_lung_dataset()
-PATH = 'F:/ContextLearning/snapshots/ConResNet_1001_1113'
+PATH = 'F:/ContextLearning/snapshots/ConResNet_1006_1338_JY'
 
-predictor(PATH=PATH, data_loader=pred_loader)
+model_name = '/ConResNet_BEST.pth'
+csv_name = '/prediction_test_BEST.csv'
+mode = 'test'
+predictor(PATH=PATH, data_loader=pred_loader, model_name=model_name, csv_name=csv_name, mode=mode)

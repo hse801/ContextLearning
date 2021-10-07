@@ -150,8 +150,8 @@ pred_ds = Lung_dataset(valid_ct_path[0:70], valid_pet_path[0:70], valid_folder_p
 
 def generate_lung_dataset():
 
-    train_loader = DataLoader(train_ds, batch_size=1, num_workers=4)
-    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4)
+    train_loader = DataLoader(train_ds, batch_size=1, num_workers=2)
+    val_loader = DataLoader(val_ds, batch_size=1, num_workers=2)
     # train_loader = DataLoader(res_train_ds, batch_size=2, num_workers=4)
     # val_loader = DataLoader(res_val_ds, batch_size=2, num_workers=4)
     pred_loader = DataLoader(pred_ds, batch_size=1, num_workers=0)
