@@ -231,6 +231,7 @@ def predictor(PATH, data_loader, model_name, csv_name, mode='test'):
     eval_df.loc['Median'] = eval_df.median()
     eval_df.loc['Std'] = eval_df.std()
     print(eval_df)
+    print(eval_df.loc['Mean'])
     eval_df.to_csv(PATH + csv_name, mode='w')
     print(f'Evaluation csv saved in {os.getcwd()}')
 
