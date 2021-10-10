@@ -9,6 +9,7 @@ from models.ConResNet import ConResNet
 from models.ConResNet_mod import ConResNet_mod
 from models.Co_Con import Co_Con
 from models.Co_Con_Aspp import Co_Con_ASPP
+from models.Co_Con_Aspp_res import Co_Con_ASPP_res
 import utils.metrics
 from utils.metrics import ConfusionMatrix
 from utils.metrics import compute_channel_dice
@@ -34,7 +35,7 @@ def predictor(PATH, data_loader, model_name, csv_name, mode='test'):
     model_path = PATH + model_name
     path_list = glob.glob(f'D:/HSE/LungCancerData/{mode}/*/')
     input_size = (80, 128, 160)
-    model = Co_Con(input_size, num_classes=2, weight_std=True)
+    model = Co_Con_ASPP_res(input_size, num_classes=2, weight_std=True)
     model.load_state_dict(torch.load(model_path))
 
     model = model.cuda()
@@ -243,7 +244,7 @@ def predictor(PATH, data_loader, model_name, csv_name, mode='test'):
 
 
 _, _, pred_loader = dataset.lung_dataloader.generate_lung_dataset()
-PATH = 'F:/ContextLearning/snapshots/ConResNet_1006_1338_JY'
+PATH = 'D:/HSE/ContextLearning/snapshots/ConResNet_1010_1505'
 
 model_name = '/ConResNet_BEST.pth'
 csv_name = '/prediction_test_BEST.csv'
