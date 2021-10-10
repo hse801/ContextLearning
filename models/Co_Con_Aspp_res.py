@@ -45,8 +45,8 @@ class AttBlock(nn.Module):
         self.out_planes = out_planes
         self.first_layer = first_layer
 
-        self.prelu = nn.PReLU()
-        # print(f'for group norm in = {in_planes}, out planes = {out_planes}')
+        self.relu = nn.ReLU(inplace=True)
+        print(f'for group norm in = {in_planes}, out planes = {out_planes}')
         self.gn_seg = nn.GroupNorm(8, in_planes)
         self.conv_seg = get_conv(in_planes, out_planes, kernel_size=(kernel_size[0], kernel_size[1], kernel_size[2]),
                                  stride=(stride[0], stride[1], stride[2]), padding=(padding[0], padding[1], padding[2]),
@@ -84,24 +84,45 @@ class AttBlock(nn.Module):
         res[:, :, 0, :, :] = 0
         res = torch.abs(res)
 
+        # print(f'x.shape = {x.shape}, type = {type(x)}')
+        # res = np.zeros(bs, channel, depth, heigt, width)
+        # res = torch.zeros_like(x).cuda()
+        # x = x.detach().cpu().numpy()
+        # res = res.detach().cpu().numpy()
+        # # print(f'res.shape = {res.shape}, x type = {type(x)}')
+        # for b in range(bs):
+        #     for c in range(channel):
+        #         x_slice = x[b, c, :, :, :]
+        #         sx = ndimage.sobel(x_slice, axis=0, mode='constant')
+        #         sy = ndimage.sobel(x_slice, axis=1, mode='constant')
+        #         res[b, c, :, :, :] = np.hypot(sx, sy)
+        #         res[b, c, :, :, :] = (res[b, c, :, :, :] - np.min(res[b, c, :, :, :])) / (np.max(res[b, c, :, :, :]) - np.min(res[b, c, :, :, :]))
+        # res = torch.from_numpy(res).float().cuda()
+        # print(f'res type = {type(res)}')
+
         return res
 
     def forward(self, input):
         x1, x2 = input
         if self.first_layer:
+            # print(f'first layer: x1 = {x1.size()}, x2 = {x2.size()}')
+            # first layer: x1 = torch.Size([1, 64, 20, 32, 40]), x2 = torch.Size([1, 2, 20, 32, 40])
             x1 = self.gn_seg(x1)
-            x1 = self.prelu(x1)
+            x1 = self.relu(x1)
             x1 = self.conv_seg(x1)
 
             res = torch.sigmoid(x1)
             res = self._res(res)
             res = self.conv_res(res)
+            # print(f'AttBlock x2 = {x2.size()}, res = {res.size()}')
+            #
             x2 = self.conv_mp_first(x2)
+            # print(f'2ConResAtt x2 = {x2.size()}, res = {res.size()}')
             x2 = x2 + res
 
         else:
             x1 = self.gn_seg(x1)
-            x1 = self.prelu(x1)
+            x1 = self.relu(x1)
             x1 = self.conv_seg(x1)
 
             res = torch.sigmoid(x1)
@@ -110,13 +131,13 @@ class AttBlock(nn.Module):
 
             if self.in_planes != self.out_planes:
                 x2 = self.gn_mp(x2)
-                x2 = self.prelu(x2)
+                x2 = self.relu(x2)
                 x2 = self.conv_mp(x2)
 
             x2 = x2 + res
 
         x2 = self.gn_res1(x2)
-        x2 = self.prelu(x2)
+        x2 = self.relu(x2)
         x2 = self.conv_res1(x2)
 
         x1 = x1 * (1 + torch.sigmoid(x2))
@@ -129,7 +150,7 @@ class ConvBlock(nn.Module):
                  multi_grid=1, weight_std=False):
         super(ConvBlock, self).__init__()
         self.weight_std = weight_std
-        self.prelu = nn.PReLU()
+        self.relu = nn.ReLU(inplace=True)
 
         self.gn1 = nn.GroupNorm(8, inplanes)
         self.conv1 = get_conv(inplanes, planes, kernel_size=(3, 3, 3), stride=stride, padding=dilation * multi_grid,
@@ -147,11 +168,11 @@ class ConvBlock(nn.Module):
         skip = x
 
         seg = self.gn1(x)
-        seg = self.prelu(seg)
+        seg = self.relu(seg)
         seg = self.conv1(seg)
 
         seg = self.gn2(seg)
-        seg = self.prelu(seg)
+        seg = self.relu(seg)
         seg = self.conv2(seg)
 
         if self.downsample is not None:
@@ -164,6 +185,7 @@ class ConvBlock(nn.Module):
 class ASPP(nn.Module):
     """
     3D Astrous Spatial Pyramid Pooling
+    Code modified from https://github.com/lvpeiqing/SAR-U-Net-liver-segmentation/blob/master/models/se_p_resunet/se_p_resunet.py
     """
     def __init__(self, in_dims, out_dims, rate=[6, 12, 18]):
         super(ASPP, self).__init__()
@@ -230,6 +252,7 @@ class CoConNet(nn.Module):
         # print(f'weight std = {weight_std}')
         self.encoder0 = nn.Sequential(
             # Input channel -> num_filters
+            # 2 -> 32
             get_conv(in_planes=in_channels, out_planes=self.num_filters, kernel_size=(3, 3, 3), stride=(1, 1, 1),
                      padding=(1, 1, 1), bias=False)
         )
@@ -238,6 +261,7 @@ class CoConNet(nn.Module):
                      padding=(1, 1, 1), bias=False)
         )
         self.encoder1 = nn.Sequential(
+            # 32 -> 64
             nn.GroupNorm(8, self.num_filters),
             get_conv(in_planes=self.num_filters, out_planes=self.num_filters * 2, kernel_size=(3, 3, 3), stride=(2, 2, 2),
                      padding=(1, 1, 1), bias=False),
@@ -263,6 +287,7 @@ class CoConNet(nn.Module):
             nn.PReLU(self.num_filters * 4)
         )
         self.encoder3 = nn.Sequential(
+            # 128 -> 256
             nn.GroupNorm(8, self.num_filters * 4),
             get_conv(in_planes=self.num_filters * 4, out_planes=self.num_filters * 8, kernel_size=(3, 3, 3), stride=(2, 2, 2),
                      padding=(1, 1, 1), bias=False),
@@ -286,6 +311,16 @@ class CoConNet(nn.Module):
         self.layer3_2 = self._make_layer(block, self.num_filters * 8, self.num_filters * 8, layers[3], stride=(1, 1, 1))
         self.layer4 = self._make_layer(block, self.num_filters * 8, self.num_filters * 8, layers[4], stride=(1, 1, 1), dilation=(2, 2, 2))
         self.layer4_2 = self._make_layer(block, self.num_filters * 8, self.num_filters * 8, layers[4], stride=(1, 1, 1), dilation=(2, 2, 2))
+        # self.layer0 = self._make_layer(block, 32, 32, layers[0], stride=(1, 1, 1))
+        # self.layer0_2 = self._make_layer(block, 32, 32, layers[0], stride=(1, 1, 1))
+        # self.layer1 = self._make_layer(block, 64, 64, layers[1], stride=(1, 1, 1))
+        # self.layer1_2 = self._make_layer(block, 64, 64, layers[1], stride=(1, 1, 1))
+        # self.layer2 = self._make_layer(block, 128, 128, layers[2], stride=(1, 1, 1))
+        # self.layer2_2 = self._make_layer(block, 128, 128, layers[2], stride=(1, 1, 1))
+        # self.layer3 = self._make_layer(block, 256, 256, layers[3], stride=(1, 1, 1))
+        # self.layer3_2 = self._make_layer(block, 256, 256, layers[3], stride=(1, 1, 1))
+        # self.layer4 = self._make_layer(block, 256, 256, layers[4], stride=(1, 1, 1), dilation=(2, 2, 2))
+        # self.layer4_2 = self._make_layer(block, 256, 256, layers[4], stride=(1, 1, 1), dilation=(2, 2, 2))
 
         self.fusionConv = nn.Sequential(
             nn.GroupNorm(8, self.num_filters * 8),
@@ -347,10 +382,17 @@ class CoConNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x_list):
+        x, x_res = x_list
 
         """
         [Batch, Channel, Depth, Width, Height]
         x size = torch.Size([1, 2, 80, 128, 160]), x_res size = torch.Size([1, 2, 80, 128, 160])
+        x1 = torch.Size([1, 32, 80, 128, 160])
+        x2 = torch.Size([1, 64, 40, 64, 80])
+        x3 = torch.Size([1, 128, 20, 32, 40])
+        x4 = torch.Size([1, 256, 10, 16, 20])
+        x5 = torch.Size([1, 256, 10, 16, 20])
+        x6 = torch.Size([1, 128, 10, 16, 20])
         """
         x, x_res = x_list
         x_0 = x[:, 0, :, :, :] # CT data
@@ -372,7 +414,6 @@ class CoConNet(nn.Module):
         # Stage 2
         x_0 = self.encoder1(x_0)
         x_1 = self.encoder11(x_1)
-
         x_0 = self.layer1(x_0) + x_0
         x_1 = self.layer1(x_1) + x_1
         skip2 = torch.cat([x_0, x_1], dim=1)
@@ -392,12 +433,11 @@ class CoConNet(nn.Module):
         x_0 = self.layer3(x_0) + x_0
         x_1 = self.layer3(x_1) + x_1
 
-        x_0 = self.layer4(x_0)
-        x_1 = self.layer4(x_1)
+        x_0 = self.layer4(x_0) + x_0
+        x_1 = self.layer4(x_1) + x_1
 
         x_0 = self.aspp1(x_0)
         x_1 = self.aspp2(x_1)
-
         x = torch.cat([x_0, x_1], dim=1)
 
         res_x4 = F.interpolate(x_res, size=(int(self.shape[0] / 4), int(self.shape[1] / 4), int(self.shape[2] / 4)), mode='trilinear', align_corners=True)
