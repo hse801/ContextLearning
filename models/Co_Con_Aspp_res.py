@@ -45,7 +45,7 @@ class AttBlock(nn.Module):
         self.out_planes = out_planes
         self.first_layer = first_layer
 
-        self.prelu = nn.PReLU()(inplace=True)
+        self.prelu = nn.PReLU()
         # print(f'for group norm in = {in_planes}, out planes = {out_planes}')
         self.gn_seg = nn.GroupNorm(8, in_planes)
         self.conv_seg = get_conv(in_planes, out_planes, kernel_size=(kernel_size[0], kernel_size[1], kernel_size[2]),
@@ -361,37 +361,36 @@ class CoConNet(nn.Module):
 
         # Encoder
         # Stage 1
-        x_0 = self.encoder0(x_0) + x_0
+        x_0 = self.encoder0(x_0)
         x_1 = self.encoder00(x_1)
 
-        x_0 = self.layer0(x_0)
-        ct_res1 = x_0
-        x_1 = self.layer0(x_1)
+        x_0 = self.layer0(x_0) + x_0
+        x_1 = self.layer0(x_1) + x_1
 
         skip1 = torch.cat([x_0, x_1], dim=1)
 
         # Stage 2
-        x_0 = self.encoder1(x_0) + ct_res1
+        x_0 = self.encoder1(x_0)
         x_1 = self.encoder11(x_1)
-        x_0 = self.layer1(x_0)
-        ct_res2 = x_0
-        x_1 = self.layer1(x_1)
+
+        x_0 = self.layer1(x_0) + x_0
+        x_1 = self.layer1(x_1) + x_1
         skip2 = torch.cat([x_0, x_1], dim=1)
 
         # Stage 3
-        x_0 = self.encoder2(x_0) + ct_res2
+        x_0 = self.encoder2(x_0)
         x_1 = self.encoder22(x_1)
 
-        x_0 = self.layer2(x_0)
-        x_1 = self.layer2(x_1)
+        x_0 = self.layer2(x_0) + x_0
+        x_1 = self.layer2(x_1) + x_1
         skip3 = torch.cat([x_0, x_1], dim=1)
 
         # Stage 4
         x_0 = self.encoder3(x_0)
         x_1 = self.encoder33(x_1)
 
-        x_0 = self.layer3(x_0)
-        x_1 = self.layer3(x_1)
+        x_0 = self.layer3(x_0) + x_0
+        x_1 = self.layer3(x_1) + x_1
 
         x_0 = self.layer4(x_0)
         x_1 = self.layer4(x_1)
@@ -429,7 +428,7 @@ class CoConNet(nn.Module):
         return [seg, res, resx2, resx4]
 
 
-def Co_Con_ASPP(shape, num_classes=2, weight_std=True):
+def Co_Con_ASPP_res(shape, num_classes=2, weight_std=True):
     # model = CoConNet(shape, block=ConvBlock, layers=[1, 1, 1, 1, 1], num_classes=num_classes, weight_std=weight_std)
     model = CoConNet(shape, block=ConvBlock, layers=[1, 2, 2, 2, 2], num_classes=num_classes, weight_std=weight_std)
     # model = CoConNet(input_size, block=ConvBlock, layers=[1, 4, 4, 4, 4], num_classes=num_classes, weight_std=weight_std)

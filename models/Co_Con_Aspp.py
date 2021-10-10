@@ -383,7 +383,7 @@ class CoConNet(nn.Module):
 
     def forward(self, x_list):
         x, x_res = x_list
-        # print(f'x size = {x.size()}, x_res size = {x_res.size()}')
+        print(f'x size = {x.size()}, x_res size = {x_res.size()}')
 
         """
         [Batch, Channel, Depth, Width, Height]
@@ -409,14 +409,15 @@ class CoConNet(nn.Module):
         x_0 = self.encoder0(x_0)
         x_1 = self.encoder00(x_1)
         # print(f'bf layer 0: x0 = {x_0.size()}, x_1 = {x_1.size()}')
-        # bf layer 0: x0 = torch.Size([1, 16, 80, 128, 160]), x_1 = torch.Size([1, 16, 80, 128, 160])
+        # bf layer 0: x0 = torch.Size([1, 24, 80, 128, 160]), x_1 = torch.Size([1, 24, 80, 128, 160])
         x_0 = self.layer0(x_0)
         x_1 = self.layer0(x_1)
         # print(f'af layer 0: x0 = {x_0.size()}, x_1 = {x_1.size()}')
+        # af layer 0: x0 = torch.Size([1, 24, 80, 128, 160]), x_1 = torch.Size([1, 24, 80, 128, 160])
 
         skip1 = torch.cat([x_0, x_1], dim=1)
         # print(f'skip1 = {skip1.size()}')
-        # skip1 = torch.Size([1, 16, 80, 128, 160])
+        # skip1 = torch.Size([1, 48, 80, 128, 160])
 
         # Stage 2
         x_0 = self.encoder1(x_0)

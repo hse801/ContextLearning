@@ -15,6 +15,7 @@ import os.path as osp
 from models.ConResNet import ConResNet
 # from models.ConResNet_no_residual import ConResNet_no_res
 from models.ConResNet_Co import ConResNet_Co
+from models.Co_Con_Aspp_res import Co_Con_ASPP_res
 # from models.ConResNet_sobel import ConResNet_sobel
 # from models.ConResNet_2_slice import ConResNet_2_slice
 from models.ConResNet_new import COCONNET
@@ -142,8 +143,8 @@ def main():
         if torch.cuda.is_available():
             torch.cuda.manual_seed(seed)
 
-        # print(f'input size = {input_size}')
-        model = Co_Con_ASPP(input_size, num_classes=args.num_classes, weight_std=True)
+        # Model
+        model = Co_Con_ASPP_res(input_size, num_classes=args.num_classes, weight_std=True)
         # model = ConResNet_mod(input_size, num_classes=args.num_classes, weight_std=True)
         # model = ConResNet_Co(input_size, num_classes=args.num_classes, weight_std=True)
         print(model)
