@@ -12,7 +12,7 @@ lung_path = glob.glob('F:/LungCancerData/valid/27246762/')
 for path in lung_path:
     CoCon_file = glob.glob(path + 'Co_Con_*')
     ConRes_file = glob.glob(path + 'ConResNet_Pred*')
-    ResU_file = glob.glob(path  + 'pred_RESUNET*')
+    ResU_file = glob.glob(path + 'pred_RESUNET*')
     os.chdir(path)
 
     mask_path = path + 'ROI_cut.nii.gz'
@@ -52,21 +52,66 @@ for path in lung_path:
     arr_ResU_data = sitk.GetArrayFromImage(img_ResU)
 
     os.chdir(path)
+    TN = 5
+    TP = 15
+    FN = 7
+    FP = -3
+
+    '''
+    plot difference for each model
+
     diff_CoCon = img_mask_data - arr_CoCon_data
-    diff_CoCon = np.where(diff_CoCon != 0, 1, 0)
+    diff_CoCon = np.where((img_mask_data != 0) & (arr_CoCon_data == 0), FN, diff_CoCon) # False Negative
+    diff_CoCon = np.where(img_mask_data < arr_CoCon_data, FP, diff_CoCon)  # False Positive
+    diff_CoCon = np.where(diff_CoCon == 0, TN, diff_CoCon) # True Negative
+    diff_CoCon = np.where(diff_CoCon == 0, TP, diff_CoCon) # True Positive
     diff_CoCon_img = sitk.GetImageFromArray(diff_CoCon)
-    sitk.WriteImage(diff_CoCon_img[:, :, :], 'diff_CoConAspp.nii.gz')
+    sitk.WriteImage(diff_CoCon_img[:, :, :], 'diff_TPFP_CoConAspp.nii.gz')
 
     diff_ConRes = img_mask_data - arr_ConRes_data
-    diff_ConRes = np.where(diff_ConRes != 0, 1, 0)
+    diff_ConRes = np.where(diff_ConRes > 0, FN, diff_ConRes) # False Negative
+    diff_ConRes = np.where(diff_ConRes == -1, FP, diff_ConRes)  # False Positive
+    diff_ConRes = np.where(diff_ConRes == 0, TN, diff_ConRes)
     diff_ConRes_img = sitk.GetImageFromArray(diff_ConRes)
-    sitk.WriteImage(diff_ConRes_img[:, :, :], 'diff_ConRes.nii.gz')
-
+    sitk.WriteImage(diff_ConRes_img[:, :, :], 'diff_TPFP_ConRes.nii.gz')
+    
     diff_ResU = img_mask_data - arr_ResU_data
-    diff_ResU = np.where(diff_ResU != 0, 1, 0)
+    diff_ResU = np.where(diff_ResU > 0, FN, diff_ResU) # False Negative
+    diff_ResU = np.where(diff_ResU == -1, FP, diff_ResU)  # False Positive
+    diff_ResU = np.where(diff_ResU == 0, TN, diff_ResU)
     diff_ResU_img = sitk.GetImageFromArray(diff_ResU)
-    sitk.WriteImage(diff_ResU_img[:, :, :], 'diff_ResU.nii.gz')
+    sitk.WriteImage(diff_ResU_img[:, :, :], 'diff_TPFP_ResU.nii.gz')
+    '''
 
+    compare_ResU = np.zeros((80, 128, 160))
+    diff_ResU = img_mask_data - arr_ResU_data
+    # diff_ResU = np.where(diff_ResU != 0, 1, 0)
+    compare_ResU = np.where((img_mask_data == 1) & (arr_ResU_data == 0), FN, compare_ResU) # False Negative
+    compare_ResU = np.where((img_mask_data == 0) & (arr_ResU_data == 1), FP, compare_ResU)  # False Positive
+    compare_ResU = np.where((img_mask_data == 0) & (arr_ResU_data == 0), TN, compare_ResU) # True Negative
+    compare_ResU = np.where((img_mask_data == 1) & (arr_ResU_data == 1), TP, compare_ResU) # True Positive
+    compare_ResU_img = sitk.GetImageFromArray(compare_ResU)
+    sitk.WriteImage(compare_ResU_img[:, :, :], 'Compare_ResU.nii.gz')
+
+    compare_CoCon = np.zeros((80, 128, 160))
+    diff_CoCon = img_mask_data - arr_CoCon_data
+    # diff_ResU = np.where(diff_ResU != 0, 1, 0)
+    compare_CoCon = np.where((img_mask_data == 1) & (arr_CoCon_data == 0), FN, compare_CoCon) # False Negative
+    compare_CoCon = np.where((img_mask_data == 0) & (arr_CoCon_data == 1), FP, compare_CoCon)  # False Positive
+    compare_CoCon = np.where((img_mask_data == 0) & (arr_CoCon_data == 0), TN, compare_CoCon) # True Negative
+    compare_CoCon = np.where((img_mask_data == 1) & (arr_CoCon_data == 1), TP, compare_CoCon) # True Positive
+    compare_CoCon_img = sitk.GetImageFromArray(compare_CoCon)
+    sitk.WriteImage(compare_CoCon_img[:, :, :], 'Compare_CoCon.nii.gz')
+
+    compare_ConRes = np.zeros((80, 128, 160))
+    diff_ConRes = img_mask_data - arr_ConRes_data
+    # diff_ResU = np.where(diff_ResU != 0, 1, 0)
+    compare_ConRes = np.where((img_mask_data == 1) & (arr_ConRes_data == 0), FN, compare_ConRes) # False Negative
+    compare_ConRes = np.where((img_mask_data == 0) & (arr_ConRes_data == 1), FP, compare_ConRes)  # False Positive
+    compare_ConRes = np.where((img_mask_data == 0) & (arr_ConRes_data == 0), TN, compare_ConRes) # True Negative
+    compare_ConRes = np.where((img_mask_data == 1) & (arr_ConRes_data == 1), TP, compare_ConRes) # True Positive
+    compare_ConRes_img = sitk.GetImageFromArray(compare_ConRes)
+    sitk.WriteImage(compare_ConRes_img[:, :, :], 'Compare_ConRes.nii.gz')
 
     print(f'Difference file saved in {os.getcwd()}')
 
