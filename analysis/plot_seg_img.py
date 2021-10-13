@@ -14,6 +14,12 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 import cv2
 
+"""
+plot image of the prediction results of the models
+saved as .jpg file
+TP, FP, FN, FP values are assigned as RGB code
+
+"""
 lung_path = glob.glob('F:/LungCancerData/valid/27246762/')
 
 
