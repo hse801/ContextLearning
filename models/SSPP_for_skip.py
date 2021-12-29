@@ -246,7 +246,7 @@ class ASPP(nn.Module):
         x2 = self.aspp_block2(x)
         x3 = self.aspp_block3(x)
         out = torch.cat([x1, x2, x3], dim=1)
-        print(f'ASPP out = {out.size()}')
+        # print(f'ASPP out = {out.size()}')
         return self.output(out)
 
     def _init_weights(self):
@@ -264,41 +264,41 @@ class SSPP(nn.Module):
         self.shape = shape
         self.stage = stage
         self.sspp_block1 = nn.Sequential(
-            nn.AvgPool3d(3),
+            nn.AvgPool3d(kernel_size=2, stride=2),
             nn.Conv3d(in_dims, out_dims, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1)),
             nn.PReLU(),
             nn.GroupNorm(8, out_dims)
         )
         self.sspp_block2 = nn.Sequential(
-            nn.AvgPool3d(3),
+            nn.AvgPool3d(kernel_size=2, stride=2),
             nn.Conv3d(in_dims, out_dims, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1)),
             nn.PReLU(),
             nn.GroupNorm(8, out_dims)
         )
         self.sspp_block3 = nn.Sequential(
-            nn.AvgPool3d(3),
+            nn.AvgPool3d(kernel_size=2, stride=2),
             nn.Conv3d(in_dims, out_dims, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1)),
             nn.PReLU(),
             nn.GroupNorm(8, out_dims)
         )
         self.conv_block = nn.Sequential(
-            nn.AvgPool3d(3),
+            nn.AvgPool3d(kernel_size=2, stride=2),
             nn.Conv3d(in_dims, out_dims, kernel_size=(1, 1, 1)),
             nn.PReLU(),
             nn.GroupNorm(8, out_dims)
         )
-        self.upsample = nn.AvgPool3d(3)
+        self.upsample = nn.AvgPool3d(kernel_size=2, stride=2)
         self.output = nn.Conv3d(4 * out_dims, out_dims, kernel_size=(1, 1, 1))
         self._init_weights()
 
     def forward(self, x):
-        print(f'SSPP2 x = {x.size()}')
+        # print(f'SSPP2 x = {x.size()}')
         x1 = self.sspp_block1(x)
-        print(f'SSPP2 x1 = {x1.size()}')
+        # print(f'SSPP2 x1 = {x1.size()}')
         x2 = self.sspp_block2(x1)
-        print(f'SSPP2 x2 = {x2.size()}')
+        # print(f'SSPP2 x2 = {x2.size()}')
         x3 = self.sspp_block3(x2)
-        print(f'SSPP2 x3 = {x3.size()}')
+        # print(f'SSPP2 x3 = {x3.size()}')
         # x4 = self.upsample(x)
         x4 = self.conv_block(x)
         x1 = F.interpolate(x1, size=(int(self.shape[0] / self.stage), int(self.shape[1] / self.stage), int(self.shape[2] / self.stage)),
@@ -309,12 +309,12 @@ class SSPP(nn.Module):
                       mode='trilinear', align_corners=True)
         x4 = F.interpolate(x4, size=(int(self.shape[0] / self.stage), int(self.shape[1] / self.stage), int(self.shape[2] / self.stage)),
                       mode='trilinear', align_corners=True)
-        print(f'af SSPP2 x4 = {x4.size()}')
-        print(f'SSPP2 x1 = {x1.size()}')
-        print(f'SSPP2 x2 = {x2.size()}')
-        print(f'SSPP2 x3 = {x3.size()}')
+        # print(f'af SSPP2 x4 = {x4.size()}')
+        # print(f'SSPP2 x1 = {x1.size()}')
+        # print(f'SSPP2 x2 = {x2.size()}')
+        # print(f'SSPP2 x3 = {x3.size()}')
         out = torch.cat([x1, x2, x3, x4], dim=1)
-        print(f'self.output(out) = {self.output(out).size()}')
+        # print(f'self.output(out) = {self.output(out).size()}')
         return self.output(out)
 
     def _init_weights(self):
@@ -327,7 +327,7 @@ class SSPP(nn.Module):
 
 
 class CoConNet(nn.Module):
-    def __init__(self, shape, block, layers, num_filters=24, in_channels=1, num_classes=2, weight_std=False):
+    def __init__(self, shape, block, layers, num_filters=16, in_channels=1, num_classes=2, weight_std=False):
         super(CoConNet, self).__init__()
         self.shape = shape
         self.weight_std = weight_std
@@ -348,7 +348,7 @@ class CoConNet(nn.Module):
                      padding=(1, 1, 1), bias=False)
         )
 
-        print(f'filters = {self.num_filters}')
+        # print(f'filters = {self.num_filters}')
         self.encoder1 = nn.Sequential(
             # 32 -> 64
             nn.GroupNorm(8, self.num_filters),
@@ -425,6 +425,12 @@ class CoConNet(nn.Module):
         )
         self.sspp1 = nn.Sequential(
             SSPP(self.num_filters * 2, self.num_filters * 2, shape=self.shape, stage=1)
+        )
+        self.sspp2 = nn.Sequential(
+            SSPP(self.num_filters * 4, self.num_filters * 4, shape=self.shape, stage=2)
+        )
+        self.sspp3 = nn.Sequential(
+            SSPP(self.num_filters * 8, self.num_filters * 8, shape=self.shape, stage=4)
         )
         # self.sspp2 = nn.Sequential(
         #     SSPP(self.num_filters * 8, self.num_filters * 4)
@@ -513,11 +519,14 @@ class CoConNet(nn.Module):
 
         x_0 = self.layer0(x_0) + x_0
         x_1 = self.layer0(x_1) + x_1
-
+        # x_0_skip = self.sspp1(x_0)
+        # x_1_skip = self.sspp2(x_1)
+        # skip1 = torch.cat([x_0_skip, x_1_skip], dim=1)
         skip1 = torch.cat([x_0, x_1], dim=1)
-        print(f'bf skip1 = {skip1.size()}')
         skip1 = self.sspp1(skip1)
-        print(f'skip1 = {skip1.size()}')
+        # print(f'bf skip1 = {skip1.size()}')
+
+        # print(f'skip1 = {skip1.size()}')
         # skip1[1, 0, :, :, 52]
 
         # Stage 2
@@ -526,7 +535,10 @@ class CoConNet(nn.Module):
         x_0 = self.layer1(x_0) + x_0
         x_1 = self.layer1(x_1) + x_1
         skip2 = torch.cat([x_0, x_1], dim=1)
-        print(f'skip2 = {skip2.size()}')
+        skip2 = self.sspp2(skip2)
+        # print(f'skip2 = {skip2.size()}')
+        # # skip2 = self.sspp2(skip2)
+        # print(f'skip2 = {skip2.size()}')
 
         # Stage 3
         x_0 = self.encoder2(x_0)
@@ -535,7 +547,8 @@ class CoConNet(nn.Module):
         x_0 = self.layer2(x_0) + x_0
         x_1 = self.layer2(x_1) + x_1
         skip3 = torch.cat([x_0, x_1], dim=1)
-        print(f'skip3 = {skip3.size()}')
+        skip3 = self.sspp3(skip3)
+        # print(f'skip3 = {skip3.size()}')
 
         # Stage 4
         x_0 = self.encoder3(x_0)
@@ -549,11 +562,11 @@ class CoConNet(nn.Module):
         x_0 = self.aspp1(x_0)
         x_1 = self.aspp2(x_1)
         x = torch.cat([x_0, x_1], dim=1)
-        print(f'skip4 = {x.size()}')
-        print(f'self.shape[0] = {self.shape[0]}, [1] = {self.shape[1]}, [2] = {self.shape[2]}')
+        # print(f'skip4 = {x.size()}')
+        # print(f'self.shape[0] = {self.shape[0]}, [1] = {self.shape[1]}, [2] = {self.shape[2]}')
         res_x4 = F.interpolate(x_res, size=(int(self.shape[0] / 4), int(self.shape[1] / 4), int(self.shape[2] / 4)), mode='trilinear', align_corners=True)
         seg_x4 = F.interpolate(x, size=(int(self.shape[0] / 4), int(self.shape[1] / 4), int(self.shape[2] / 4)), mode='trilinear', align_corners=True)
-        print(f'seg_x4 = {seg_x4.size()}, skip3 = {skip3.size()}')
+        # print(f'seg_x4 = {seg_x4.size()}, skip3 = {skip3.size()}')
         seg_x4 = seg_x4 + skip3
         seg_x4, res_x4 = self.seg_x4([seg_x4, res_x4])
 
@@ -581,6 +594,18 @@ class CoConNet(nn.Module):
 
 
 def SSPP_for_skip(shape, num_classes=2, weight_std=True):
+    """
+    :param shape:
+    :param num_classes:
+    :param weight_std:
+    :return:
+
+    Add Stride Spatial Pyramid Pooling layer
+    Inspired from "Semantic segmentation using stride spatial pyramid pooling and dual attention decoder"
+    SSPP block for each skip connection
+    To employ multi-scale information
+
+    """
     # model = CoConNet(shape, block=ConvBlock, layers=[1, 1, 1, 1, 1], num_classes=num_classes, weight_std=weight_std)
     model = CoConNet(shape, block=ConvBlock, layers=[1, 2, 2, 2, 2], num_classes=num_classes, weight_std=weight_std)
     # model = CoConNet(input_size, block=ConvBlock, layers=[1, 4, 4, 4, 4], num_classes=num_classes, weight_std=weight_std)

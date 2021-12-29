@@ -286,7 +286,7 @@ class SSPP2(nn.Module):
         )
         self.sspp_block3 = nn.Sequential(
             nn.AvgPool3d(3),
-            nn.Conv3d(in_dims, out_dims, kernel_size=(3, 3, 3), stride=(1, 1, 1)),
+            nn.Conv3d(in_dims, out_dims, kernel_size=(3, 3, 3), stride=(2, 2, 2)),
             nn.PReLU(),
             nn.GroupNorm(8, out_dims)
         )
