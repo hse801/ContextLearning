@@ -92,15 +92,25 @@ class Lung_dataset(Dataset):
             # 2 class labels
             img_mask_data = np.stack((img_primary_data, img_lymph_data), axis=0)
             img_mask_data[img_mask_data > 0] = 1
+
+            img_primary_data[img_primary_data > 0] = 1
+            #print(f'img_mask_data min = {np.min(img_mask_data)}, max = {np.max(img_mask_data)}, mean = {np.mean(img_mask_data)}')
             primary_copy = np.zeros((80, 128, 160)).astype(np.float32)
             primary_copy[1:, :, :] = img_primary_data[0: ct_size - 1, :, :]
             primary_res = img_primary_data - primary_copy
+            primary_res[primary_res != 0] = 1
 
+            img_lymph_data[img_lymph_data > 0] = 1
             lymph_copy = np.zeros((80, 128, 160)).astype(np.float32)
             lymph_copy[1:, :, :] = img_lymph_data[0: ct_size - 1, :, :]
             lymph_res = img_lymph_data - lymph_copy
+            lymph_res[lymph_res != 0] = 1
 
+            # print(f'primary_res min = {np.min(primary_res)}, max = {np.max(primary_res)}, mean = {np.mean(primary_res)}')
+            # print(f'lymph_res min = {np.min(lymph_res)}, max = {np.max(lymph_res)}, mean = {np.mean(lymph_res)}')
             mask_res = np.stack((primary_res, lymph_res), axis=0)
+
+            # mask_res = np.stack((primary_res, img_lymph_data), axis=0)
 
         # sum lymph and primary
         # img_mask_data = img_primary_data + img_lymph_data
@@ -122,30 +132,27 @@ class Lung_dataset(Dataset):
 
 """Loading DATA"""
 
-# 128x128x128
-train_ct_path = glob.glob('F:/LungCancerData/train/*/CT_cut.nii.gz')
-train_pet_path = glob.glob('F:/LungCancerData/train/*/PET_cut.nii.gz')
+train_ct_path = glob.glob('D:/HSE/LungCancerData/train/*/CT_cut.nii.gz')
+train_pet_path = glob.glob('D:/HSE/LungCancerData/train/*/PET_cut.nii.gz')
 # primary_path = glob.glob('D:/HSE/LungCancerData/train/*/ROI_cut.nii.gz')
-valid_ct_path = glob.glob('F:/LungCancerData/valid/*/CT_cut.nii.gz')
-valid_pet_path = glob.glob('F:/LungCancerData/valid/*/PET_cut.nii.gz')
-# test set
-test_ct_path = glob.glob('F:/LungCancerData/test/*/CT_cut.nii.gz')
-test_pet_path = glob.glob('F:/LungCancerData/test/*/PET_cut.nii.gz')
+valid_ct_path = glob.glob('D:/HSE/LungCancerData/valid/*/CT_cut.nii.gz')
+valid_pet_path = glob.glob('D:/HSE/LungCancerData/valid/*/PET_cut.nii.gz')
+train_folder_path = glob.glob('D:/HSE/LungCancerData/train/*/')
+valid_folder_path = glob.glob('D:/HSE/LungCancerData/valid/*/')
 
-train_folder_path = glob.glob('F:/LungCancerData/train/*/')
-valid_folder_path = glob.glob('F:/LungCancerData/valid/*/')
-test_folder_path = glob.glob('F:/LungCancerData/test/*/')
+test_ct_path = glob.glob('D:/HSE/LungCancerData/test/*/CT_cut.nii.gz')
+test_pet_path = glob.glob('D:/HSE/LungCancerData/test/*/PET_cut.nii.gz')
+test_folder_path = glob.glob('D:/HSE/LungCancerData/test/*/')
 
-
-# train_ds = Lung_dataset(train_ct_path[0:5], train_pet_path[0:5], train_folder_path[0:5], test_flag=0, classes=2)
+#train_ds = Lung_dataset(train_ct_path[0:5], train_pet_path[0:5], train_folder_path[0:5], test_flag=0, classes=2)
 #val_ds = Lung_dataset(valid_ct_path[0:8], valid_pet_path[0:8], valid_folder_path[0:8], test_flag=1, classes=2)
 train_ds = Lung_dataset(train_ct_path[0:780], train_pet_path[0:780], train_folder_path[0:780], test_flag=0, classes=2)
 val_ds = Lung_dataset(valid_ct_path[0:70], valid_pet_path[0:70], valid_folder_path[0:70], test_flag=1, classes=2)
 
 # pred_ds = Lung_dataset(valid_ct_path[0:7], valid_pet_path[0:7], valid_folder_path[0:7], test_flag=1, classes=2)
 # pred_ds = Lung_dataset(valid_ct_path[0:10], valid_pet_path[0:10], valid_folder_path[0:10], test_flag=1, classes=2)
-pred_ds = Lung_dataset(valid_ct_path[0:70], valid_pet_path[0:70], valid_folder_path[0:70], test_flag=1, classes=2)
-# pred_ds = Lung_dataset(test_ct_path[0:80], test_pet_path[0:80], test_folder_path[0:80], test_flag=1, classes=2)
+#pred_ds = Lung_dataset(valid_ct_path[0:70], valid_pet_path[0:70], valid_folder_path[0:70], test_flag=1, classes=2)
+pred_ds = Lung_dataset(test_ct_path[0:80], test_pet_path[0:80], test_folder_path[0:80], test_flag=1, classes=2)
 
 
 def generate_lung_dataset():
