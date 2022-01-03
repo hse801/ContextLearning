@@ -16,6 +16,9 @@ from models.ConResNet import ConResNet
 # from models.ConResNet_no_residual import ConResNet_no_res
 from models.ConResNet_Co import ConResNet_Co
 from models.Co_Con_Aspp_res import Co_Con_ASPP_res
+from models.SSPP import Co_Con_SSPP_res
+from models.SSPP_for_skip import SSPP_for_skip
+from models.Co_Con_Aspp_transconv import Co_Con_ASPP_TC
 # from models.ConResNet_sobel import ConResNet_sobel
 # from models.ConResNet_2_slice import ConResNet_2_slice
 from models.ConResNet_new import COCONNET
@@ -144,7 +147,8 @@ def main():
             torch.cuda.manual_seed(seed)
 
         # Model
-        model = Co_Con_ASPP_res(input_size, num_classes=args.num_classes, weight_std=True)
+        model = Co_Con_ASPP(input_size, num_classes=args.num_classes, weight_std=True)
+        # model = Co_Con_ASPP_TC(input_size, num_classes=args.num_classes, weight_std=True)
         # model = ConResNet_mod(input_size, num_classes=args.num_classes, weight_std=True)
         # model = ConResNet_Co(input_size, num_classes=args.num_classes, weight_std=True)
         print(model)
@@ -156,7 +160,7 @@ def main():
             [{'params': filter(lambda p: p.requires_grad, model.parameters()), 'lr': args.learning_rate}],
             lr=args.learning_rate, weight_decay=args.weight_decay)
         # learning rate scheduler
-        #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, eta_min=1e-6)
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, eta_min=1e-6)
         # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda=lambda epoch: 0.95 ** epoch)
         #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
         if args.num_gpus > 1:
@@ -172,7 +176,6 @@ def main():
 
         loss_D = loss.DiceLoss().to(device)
         loss_BCE = loss.BCELoss().to(device)
-
         loss_B = loss.BCELossBoud().to(device)
 
         # if not os.path.exists(args.snapshot_dir):
@@ -211,19 +214,25 @@ def main():
                 preds_res = preds[1]
                 preds_resx2 = preds[2]
                 preds_resx4 = preds[3]
+                # print(f'images_res min = {torch.min(images_res)}, max = {torch.max(images_res)}, mean = {torch.mean(images_res)}')
+                # print(f'labels_res min = {torch.min(labels_res)}, max = {torch.max(labels_res)}, mean = {torch.mean(images_res)}')
+                # print(f'preds_seg min = {torch.min(preds_seg)}, max = {torch.max(preds_seg)}, mean = {torch.mean(images_res)}')
+                # print(f'preds_res min = {torch.min(preds_res)}, max = {torch.max(preds_res)}, mean = {torch.mean(images_res)}')
+                # print(f'preds_resx2 min = {torch.min(preds_resx2)}, max = {torch.max(preds_resx2)}, mean = {torch.mean(images_res)}')
+                # print(f'preds_resx4 min = {torch.min(preds_resx4)}, max = {torch.max(preds_resx4)}, mean = {torch.mean(images_res)}')
                 # print(f'train_conresnet: preds_seg = {preds_seg.size()}, preds_res = {preds_res.size()}, preds_resx2 = {preds_resx2.size()}, preds_resx4 = {preds_resx4.size()}')
 
                 # preds_seg = torch.Size([1, 1, 80, 128, 160]), preds_res = torch.Size([1, 1, 80, 128, 160]),
                 # preds_resx2 = torch.Size([1, 1, 80, 128, 160]), preds_resx4 = torch.Size([1, 1, 80, 128, 160])
 
                 term_seg_Dice = loss_D.forward(preds_seg, labels)
-                term_seg_BCE = loss_BCE.forward(preds_seg, labels)
+                # term_seg_BCE = loss_BCE.forward(preds_seg, labels)
+                # term_res_BCE = loss_B.forward(preds_res, labels_res)
+                # term_resx2_BCE = loss_B.forward(preds_resx2, labels_res)
+                # term_resx4_BCE = loss_B.forward(preds_resx4, labels_res)
 
-                term_res_BCE = loss_B.forward(preds_res, labels_res)
-                term_resx2_BCE = loss_B.forward(preds_resx2, labels_res)
-                term_resx4_BCE = loss_B.forward(preds_resx4, labels_res)
-
-                term_all = term_seg_Dice + term_seg_BCE + term_res_BCE + 0.5 * (term_resx2_BCE + term_resx4_BCE)
+                term_all = term_seg_Dice
+                # term_all = term_seg_Dice + (term_seg_BCE + term_res_BCE + 0.5 * (term_resx2_BCE + term_resx4_BCE))
                 total_loss_sum += term_all
                 term_all.backward()
 
@@ -233,10 +242,16 @@ def main():
                 writer.add_scalar('learning_rate', optimizer.param_groups[0]["lr"], epoch)
                 writer.add_scalar('loss', term_all.cpu().data.numpy(), epoch)
                 if i_iter % 20 == 0:
-                    print('Epoch = {}, iter = {} : seg_loss = {:.4}, res_loss = {:.4}, total_loss = {:.4}'.format(
-                            epoch, i_iter, (term_seg_Dice+term_seg_BCE).cpu().data.numpy(),
-                            (term_res_BCE+term_resx2_BCE+term_resx4_BCE).cpu().data.numpy(),
-                            term_all.cpu().data.numpy()))
+                    print('Epoch = {}, iter = {} : seg_loss = {:.4}'.format(
+                            epoch, i_iter, term_all.cpu().data.numpy()))
+                    # print(f'term_seg_Dice = {term_seg_Dice:.5f}, term_seg_BCE = {term_seg_BCE:.5f}, '
+                    #       f'term_res_BCE = {term_res_BCE:.5f}, term_resx2_BCE = {term_resx2_BCE:.5f}, '
+                    #       f'term_resx4_BCE = {term_resx4_BCE:.5f}, '
+                    #       f'Weighted_BCEs = {10 * (term_seg_BCE + term_res_BCE + 0.5 * (term_resx2_BCE + term_resx4_BCE))}')
+                    # print('Epoch = {}, iter = {} : seg_loss = {:.4}, res_loss = {:.4}, total_loss = {:.4}'.format(
+                    #         epoch, i_iter, (term_seg_Dice+term_seg_BCE).cpu().data.numpy(),
+                    #         (term_res_BCE+term_resx2_BCE+term_resx4_BCE).cpu().data.numpy(),
+                    #         term_all.cpu().data.numpy()))
 
                 # if i_iter >= args.num_steps - 1 and (args.local_rank == 0):
                 #     print('save last model ...')
