@@ -4,6 +4,9 @@ from torch.nn import functional as F
 import torch
 import numpy as np
 import scipy.ndimage as ndimage
+import matplotlib.pyplot as plt
+import SimpleITK as sitk
+import os
 
 
 class ConvStd(nn.Conv3d):
@@ -83,6 +86,8 @@ class AttBlock(nn.Module):
         res = x - x_copy
         res[:, :, 0, :, :] = 0
         res = torch.abs(res)
+        # print(f'res shape = {res.size()}')
+
 
         # print(f'x.shape = {x.shape}, type = {type(x)}')
         # res = np.zeros(bs, channel, depth, heigt, width)
@@ -101,6 +106,7 @@ class AttBlock(nn.Module):
         # print(f'res type = {type(res)}')
 
         return res
+
 
     def forward(self, input):
         x1, x2 = input
@@ -383,7 +389,7 @@ class CoConNet(nn.Module):
 
     def forward(self, x_list):
         x, x_res = x_list
-        print(f'x size = {x.size()}, x_res size = {x_res.size()}')
+        # print(f'x size = {x.size()}, x_res size = {x_res.size()}')
 
         """
         [Batch, Channel, Depth, Width, Height]
@@ -509,6 +515,18 @@ class CoConNet(nn.Module):
                       mode='trilinear', align_corners=True)
         resx4 = F.interpolate(resx4, size=(int(self.shape[0] / 1), int(self.shape[1] / 1), int(self.shape[2] / 1)),
                       mode='trilinear', align_corners=True)
+        """
+        save tensor as prediction file (.nii.gz)
+        
+        print(f'resx4 size = {resx4.size()}')
+        resx4 = resx4.detach().cpu().numpy()
+        resx4 = np.where(resx4 > 0.5, 1, 0)
+        resx4_img = sitk.GetImageFromArray(resx4[0, 0, :, :, :])
+        sitk.WriteImage(resx4_img[:, :, :], 'resx4_pred.nii.gz')
+        print(f'Save image in {os.getcwd()}')
+        """
+
+
 
         return [seg, res, resx2, resx4]
 
